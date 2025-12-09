@@ -7,6 +7,18 @@ from nunchaku.utils import get_gpu_memory, get_precision
 
 rank = 128  # you can also use rank=128 model to improve the quality
 
+# print torch and cuda version
+print(f"torch version: {torch.__version__}, cuda version: {torch.version.cuda}")
+
+# print available GPUs
+print(f"Available GPUs: {torch.cuda.device_count()}")
+
+# print current device
+print(f"Current device: {torch.cuda.current_device()}")
+
+# print the precision
+print(f"Using precision: {get_precision()}")
+
 # Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(
     f"nunchaku-tech/nunchaku-qwen-image-edit-2509/svdq-{get_precision()}_r{rank}-qwen-image-edit-2509.safetensors"
@@ -16,7 +28,13 @@ pipeline = QwenImageEditPlusPipeline.from_pretrained(
     "Qwen/Qwen-Image-Edit-2509", transformer=transformer, torch_dtype=torch.bfloat16
 )
 
-if get_gpu_memory() > 18:
+# Memory optimization
+pipeline.enable_attention_slicing(slice_size="auto")  # or slice_size=1 for max savings
+pipeline.vae.enable_tiling()
+pipeline.vae.enable_slicing()
+
+# Use CPU offloading if you have more than 24GB VRAM - for RTX 4000 with 20GB
+if get_gpu_memory() > 24:
     pipeline.enable_model_cpu_offload()
 else:
     # use per-layer offloading for low VRAM. This only requires 3-4GB of VRAM.
@@ -40,6 +58,8 @@ inputs = {
     "true_cfg_scale": 4.0,
     "negative_prompt": " ",
     "num_inference_steps": 40,
+    "height": 720,
+    "width": 1600,
 }
 
 output = pipeline(**inputs)
