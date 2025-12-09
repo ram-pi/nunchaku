@@ -35,11 +35,11 @@ pipeline.enable_attention_slicing(slice_size="auto")  # or slice_size=1 for max 
 pipeline.vae.enable_tiling()
 pipeline.vae.enable_slicing()
 
-# AGGRESSIVE SETTINGS FOR DEDICATED GPU
+# Maximize GPU memory usage, minimize RAM
 transformer.set_offload(
     True,
-    use_pin_memory=True,        # Faster transfer between RAM/VRAM
-    num_blocks_on_gpu=15  # ~18GB used, close to limit
+    use_pin_memory=False, #  Keep RAM usage low
+    num_blocks_on_gpu=20 # aim for 18-19GB VRAM usage
 )
 pipeline._exclude_from_cpu_offload.append("transformer")
 pipeline.enable_sequential_cpu_offload()
