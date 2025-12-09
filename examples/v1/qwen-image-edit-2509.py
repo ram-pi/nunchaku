@@ -4,6 +4,8 @@ from diffusers.utils import load_image
 
 from nunchaku import NunchakuQwenImageTransformer2DModel
 from nunchaku.utils import get_gpu_memory, get_precision
+import random
+import string
 
 rank = 128  # you can also use rank=128 model to improve the quality
 
@@ -33,16 +35,25 @@ pipeline.enable_attention_slicing(slice_size="auto")  # or slice_size=1 for max 
 pipeline.vae.enable_tiling()
 pipeline.vae.enable_slicing()
 
+# AGGRESSIVE SETTINGS FOR DEDICATED GPU
+transformer.set_offload(
+    True,
+    use_pin_memory=True,        # Faster transfer between RAM/VRAM
+    num_blocks_on_gpu=15  # ~18GB used, close to limit
+)
+pipeline._exclude_from_cpu_offload.append("transformer")
+pipeline.enable_sequential_cpu_offload()
+
 # Use CPU offloading if you have more than 24GB VRAM - for RTX 4000 with 20GB
-if get_gpu_memory() > 24:
-    pipeline.enable_model_cpu_offload()
-else:
-    # use per-layer offloading for low VRAM. This only requires 3-4GB of VRAM.
-    transformer.set_offload(
-        True, use_pin_memory=False, num_blocks_on_gpu=1
-    )  # increase num_blocks_on_gpu if you have more VRAM
-    pipeline._exclude_from_cpu_offload.append("transformer")
-    pipeline.enable_sequential_cpu_offload()
+# if get_gpu_memory() > 18:
+#     pipeline.enable_model_cpu_offload()
+# else:
+#     # use per-layer offloading for low VRAM. This only requires 3-4GB of VRAM.
+#     transformer.set_offload(
+#         True, use_pin_memory=False, num_blocks_on_gpu=1
+#     )  # increase num_blocks_on_gpu if you have more VRAM
+#     pipeline._exclude_from_cpu_offload.append("transformer")
+#     pipeline.enable_sequential_cpu_offload()
 
 image1 = load_image("https://huggingface.co/datasets/nunchaku-tech/test-data/resolve/main/inputs/man.png")
 image1 = image1.convert("RGB")
@@ -64,4 +75,5 @@ inputs = {
 
 output = pipeline(**inputs)
 output_image = output.images[0]
-output_image.save(f"qwen-image-edit-2509-r{rank}.png")
+random_letters = ''.join(random.choices(string.ascii_lowercase, k=4))
+output_image.save(f"/tmp/qwen-image-edit-2509-r{rank}-{random_letters}.png")
