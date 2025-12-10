@@ -52,7 +52,7 @@ def benchmark_script(script_path: str, duration_seconds: int = 60, output_path: 
     max_single_duration = max(durations)
 
     if len(durations) >= 100:
-        p99_duration = statistics.quantiles(durations, n=100)[98]
+        p99_duration = sorted(durations)[int(len(durations) * 0.99)]
     else:
         p99_duration = max(durations)
 

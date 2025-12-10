@@ -81,6 +81,7 @@ while time.time() - start_time < duration_seconds:
     print(f"Execution {execution_count} completed in {elapsed:.2f}s (prompt {execution_count % len(prompts)})")
 
 total_time = time.time() - start_time
+queries_per_minute = (execution_count / total_time) * 60
 
 # Save all outputs
 for idx, image in enumerate(all_images):
@@ -92,5 +93,6 @@ print(f"Total executions: {execution_count}")
 print(f"Total time: {total_time:.2f}s ({total_time/60:.2f} minutes)")
 print(f"Average time per execution: {total_time/execution_count:.2f}s")
 print(f"Throughput: {execution_count/total_time:.4f} executions/sec")
+print(f"Queries per minute (QPM): {queries_per_minute:.2f}")
 print(f"Generated {len(all_images)} images")
 print(f"{'='*60}")

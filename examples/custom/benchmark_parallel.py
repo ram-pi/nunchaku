@@ -109,7 +109,7 @@ def benchmark_script_parallel(
     max_single_duration = max(all_durations)
 
     if len(all_durations) >= 100:
-        p99_duration = statistics.quantiles(all_durations, n=100)[98]
+        p99_duration = sorted(all_durations)[int(len(all_durations) * 0.99)]
     else:
         p99_duration = max(all_durations)
 
