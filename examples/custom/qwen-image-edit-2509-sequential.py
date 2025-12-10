@@ -7,9 +7,6 @@ from nunchaku.utils import get_gpu_memory, get_precision
 from datetime import datetime
 import time
 
-# Configurable batch size - adjust this to control how many prompts to process at once
-BATCH_SIZE = 4
-
 rank = 128  # you can also use rank=128 model to improve the quality
 
 # Load the model
