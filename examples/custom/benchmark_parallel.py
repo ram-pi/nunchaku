@@ -106,6 +106,7 @@ def benchmark_script_parallel(
 
     avg_duration = statistics.mean(all_durations)
     throughput = num_executions / total_duration
+    queries_per_minute = throughput * 60
     max_single_duration = max(all_durations)
 
     if len(all_durations) >= 100:
@@ -122,7 +123,8 @@ def benchmark_script_parallel(
         f"Total executions submitted: {execution_id}\n"
         f"Successful executions: {num_executions}\n"
         f"Failed executions: {failures}\n"
-        f"Throughput: {throughput:.4f} executions/sec\n\n"
+        f"Throughput: {throughput:.4f} executions/sec\n"
+        f"Queries per minute (QPM): {queries_per_minute:.2f}\n\n"
         f"Execution Timings:\n"
         f"  Average: {avg_duration:.4f}s\n"
         f"  P99: {p99_duration:.4f}s\n"

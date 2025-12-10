@@ -57,6 +57,7 @@ def benchmark_script(script_path: str, duration_seconds: int = 60, output_path: 
         p99_duration = max(durations)
 
     throughput = num_executions / total_duration
+    queries_per_minute = throughput * 60
 
     summary = (
         f"\n{'=' * 60}\n"
@@ -65,7 +66,8 @@ def benchmark_script(script_path: str, duration_seconds: int = 60, output_path: 
         f"Script: {script_path}\n"
         f"Wall-clock duration: {total_duration:.4f}s ({total_duration/60:.2f} min)\n"
         f"Total executions: {num_executions}\n"
-        f"Throughput: {throughput:.4f} executions/sec\n\n"
+        f"Throughput: {throughput:.4f} executions/sec\n"
+        f"Queries per minute (QPM): {queries_per_minute:.2f}\n\n"
         f"Execution Timings:\n"
         f"  Average: {avg_duration:.4f}s\n"
         f"  P99: {p99_duration:.4f}s\n"
