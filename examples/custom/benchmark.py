@@ -8,14 +8,39 @@ from pathlib import Path
 def benchmark_script(script_path: str, duration_seconds: int = 60, output_path: Path | None = None):
     """Run a Python script repeatedly and collect metrics."""
 
+    print(f"\nStarting sequential benchmark")
+    print(f"Script: {script_path}")
+    print(f"Duration: {duration_seconds}s\n")
+
     durations: list[float] = []
     start_time = time.time()
+    execution_count = 0
 
     while time.time() - start_time < duration_seconds:
+        execution_count += 1
         run_start = time.time()
-        subprocess.run(["python", script_path], check=True, capture_output=True)
-        run_duration = time.time() - run_start
-        durations.append(run_duration)
+        try:
+            result = subprocess.run(
+                ["python", script_path],
+                check=True,
+                capture_output=True,
+                text=True,
+                timeout=600,
+            )
+            run_duration = time.time() - run_start
+            durations.append(run_duration)
+            output = result.stdout + result.stderr
+            print(f"Execution {execution_count} completed in {run_duration:.2f}s")
+            if output.strip():
+                print(f"Output:\n{output}")
+        except subprocess.CalledProcessError as e:
+            run_duration = time.time() - run_start
+            output = e.stdout + e.stderr if hasattr(e, 'stdout') and hasattr(e, 'stderr') else str(e)
+            print(f"Execution {execution_count} FAILED after {run_duration:.2f}s")
+            print(f"Error output: {output}")
+        except subprocess.TimeoutExpired:
+            run_duration = time.time() - run_start
+            print(f"Execution {execution_count} TIMEOUT after {run_duration:.2f}s")
 
     total_duration = time.time() - start_time
     num_executions = len(durations)
@@ -24,13 +49,29 @@ def benchmark_script(script_path: str, duration_seconds: int = 60, output_path: 
         raise RuntimeError("No executions completed; reduce duration_seconds or check the script path.")
 
     avg_duration = statistics.mean(durations)
-    p99_duration = statistics.quantiles(durations, n=100)[98]
+    max_single_duration = max(durations)
+
+    if len(durations) >= 100:
+        p99_duration = statistics.quantiles(durations, n=100)[98]
+    else:
+        p99_duration = max(durations)
+
+    throughput = num_executions / total_duration
+
     summary = (
-        f"Total duration: {total_duration:.4f}s\n"
-        f"Executions: {num_executions}\n"
-        f"Average duration: {avg_duration:.4f}s\n"
-        f"P99 duration: {p99_duration:.4f}s\n"
-        f"Min: {min(durations):.4f}s, Max: {max(durations):.4f}s\n"
+        f"\n{'=' * 60}\n"
+        f"Sequential Benchmark Results\n"
+        f"{'=' * 60}\n"
+        f"Script: {script_path}\n"
+        f"Wall-clock duration: {total_duration:.4f}s ({total_duration/60:.2f} min)\n"
+        f"Total executions: {num_executions}\n"
+        f"Throughput: {throughput:.4f} executions/sec\n\n"
+        f"Execution Timings:\n"
+        f"  Average: {avg_duration:.4f}s\n"
+        f"  P99: {p99_duration:.4f}s\n"
+        f"  Min: {min(durations):.4f}s\n"
+        f"  Max: {max_single_duration:.4f}s\n"
+        f"{'=' * 60}\n"
     )
 
     print(summary, end="")

@@ -6,16 +6,34 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 
-def run_single_execution(script_path: str, worker_id: int) -> tuple[int, float, bool]:
-    """Run a single execution of the script and return worker_id, duration, and success status."""
+def run_single_execution(script_path: str, worker_id: int, execution_id: int) -> tuple[int, float, bool, str]:
+    """Run a single execution of the script and return worker_id, duration, success status, and output."""
+    print(f"[Worker {worker_id}] Execution #{execution_id} starting: {script_path}")
     start = time.time()
     try:
-        subprocess.run(["python", script_path], check=True, capture_output=True)
+        result = subprocess.run(
+            ["python", script_path],
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=600,
+        )
         duration = time.time() - start
-        return worker_id, duration, True
+        output = result.stdout + result.stderr
+        print(f"[Worker {worker_id}] Execution #{execution_id} completed in {duration:.2f}s")
+        if output.strip():
+            print(f"[Worker {worker_id}] Output:\n{output}")
+        return worker_id, duration, True, output
     except subprocess.CalledProcessError as e:
         duration = time.time() - start
-        return worker_id, duration, False
+        output = e.stdout + e.stderr if hasattr(e, 'stdout') and hasattr(e, 'stderr') else str(e)
+        print(f"[Worker {worker_id}] Execution #{execution_id} FAILED after {duration:.2f}s")
+        print(f"[Worker {worker_id}] Error output: {output}")
+        return worker_id, duration, False, output
+    except subprocess.TimeoutExpired:
+        duration = time.time() - start
+        print(f"[Worker {worker_id}] Execution #{execution_id} TIMEOUT after {duration:.2f}s")
+        return worker_id, duration, False, "Execution timeout"
 
 
 def benchmark_script_parallel(
@@ -30,6 +48,11 @@ def benchmark_script_parallel(
     worker_durations = {i: [] for i in range(num_workers)}
     failures = 0
     start_time = time.time()
+    execution_id = 0
+
+    print(f"\nStarting parallel benchmark with {num_workers} workers")
+    print(f"Script: {script_path}")
+    print(f"Duration: {duration_seconds}s\n")
 
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
         futures = []
@@ -39,7 +62,10 @@ def benchmark_script_parallel(
         while time.time() - start_time < duration_seconds:
             # Keep submitting up to num_workers concurrent tasks
             while len(futures) < num_workers and time.time() - start_time < duration_seconds:
-                future = executor.submit(run_single_execution, script_path, worker_idx % num_workers)
+                execution_id += 1
+                future = executor.submit(
+                    run_single_execution, script_path, worker_idx % num_workers, execution_id
+                )
                 futures.append(future)
                 worker_idx += 1
 
@@ -48,7 +74,7 @@ def benchmark_script_parallel(
                 done = set()
                 for future in futures:
                     if future.done():
-                        worker_id, duration, success = future.result()
+                        worker_id, duration, success, output = future.result()
                         if success:
                             all_durations.append(duration)
                             worker_durations[worker_id].append(duration)
@@ -63,8 +89,9 @@ def benchmark_script_parallel(
             time.sleep(0.1)
 
         # Wait for all remaining futures to complete (no time limit)
+        print(f"\nBenchmark duration reached. Waiting for {len(futures)} remaining tasks to complete...")
         for future in futures:
-            worker_id, duration, success = future.result()
+            worker_id, duration, success, output = future.result()
             if success:
                 all_durations.append(duration)
                 worker_durations[worker_id].append(duration)
@@ -79,6 +106,7 @@ def benchmark_script_parallel(
 
     avg_duration = statistics.mean(all_durations)
     throughput = num_executions / total_duration
+    max_single_duration = max(all_durations)
 
     if len(all_durations) >= 100:
         p99_duration = statistics.quantiles(all_durations, n=100)[98]
@@ -86,16 +114,21 @@ def benchmark_script_parallel(
         p99_duration = max(all_durations)
 
     summary = (
+        f"\n{'=' * 60}\n"
         f"Parallel Benchmark Results (Workers: {num_workers})\n"
-        f"{'=' * 50}\n"
-        f"Total duration: {total_duration:.4f}s\n"
+        f"{'=' * 60}\n"
+        f"Script: {script_path}\n"
+        f"Wall-clock duration: {total_duration:.4f}s ({total_duration/60:.2f} min)\n"
+        f"Total executions submitted: {execution_id}\n"
         f"Successful executions: {num_executions}\n"
         f"Failed executions: {failures}\n"
-        f"Throughput: {throughput:.4f} executions/sec\n"
-        f"Average duration: {avg_duration:.4f}s\n"
-        f"P99 duration: {p99_duration:.4f}s\n"
-        f"Min: {min(all_durations):.4f}s, Max: {max(all_durations):.4f}s\n"
-        f"\nPer-Worker Stats:\n"
+        f"Throughput: {throughput:.4f} executions/sec\n\n"
+        f"Execution Timings:\n"
+        f"  Average: {avg_duration:.4f}s\n"
+        f"  P99: {p99_duration:.4f}s\n"
+        f"  Min: {min(all_durations):.4f}s\n"
+        f"  Max (longest single execution): {max_single_duration:.4f}s\n\n"
+        f"Per-Worker Stats:\n"
     )
 
     for worker_id in range(num_workers):
