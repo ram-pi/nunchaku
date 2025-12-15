@@ -45,7 +45,6 @@ prompt = "change the text to read '双截棍 Qwen Image Edit is here'"
 inputs = {
     "image": image,
     "prompt": prompt,
-    "true_cfg_scale": 4.0,
     "true_cfg_scale": cfg_scale,
     "negative_prompt": " ",
     "num_inference_steps": num_inference_steps,
