@@ -23,8 +23,14 @@ model_path = f"nunchaku-tech/nunchaku-qwen-image-edit-2509/lightning-251115/svdq
 # qwen-image-edit-2509
 # model_path = f"nunchaku-tech/nunchaku-qwen-image-edit-2509/svdq-{get_precision()}_r{rank}-qwen-image-edit-2509.safetensors"
 
-# Base pipeline repo id
-pipeline_repo_id = "Qwen/Qwen-Image-Edit"
+# Pipeline repo source (Diffusers config/assets):
+# - Use "Qwen/Qwen-Image-Edit" for classic and lightning weights.
+# - Use "Qwen/Qwen-Image-Edit-2509" when pairing with 2509/2509-lightning transformers.
+# - For the "Plus" variant, switch to QwenImageEditPlusPipeline and keep a matching repo id.
+#   Example:
+#   from diffusers import QwenImageEditPlusPipeline
+pipeline_repo_id = "Qwen/Qwen-Image-Edit-2509"
+# pipeline_repo_id = "Qwen/Qwen-Image-Edit"
 
 # Log the chosen model configuration
 print(
