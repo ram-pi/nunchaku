@@ -11,7 +11,7 @@ from nunchaku.utils import get_gpu_memory, get_precision
 rank = 32
 num_inference_steps = 4
 cfg_scale = 1.0
-image_size = 1
+num_images_per_prompt = 1
 
 # Select model path
 # quen-image-edit-lightning
@@ -53,7 +53,7 @@ image = image.convert("RGB")
 prompt = "change the text to read '双截棍 Qwen Image Edit is here'"
 inputs = {
     "image": image,
-    "image_size": image_size,
+    "num_images_per_prompt": num_images_per_prompt,
     "prompt": prompt,
     "true_cfg_scale": cfg_scale,
     "negative_prompt": " ",
