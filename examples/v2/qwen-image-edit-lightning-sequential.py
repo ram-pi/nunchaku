@@ -1,22 +1,45 @@
+import math
 import time
 from datetime import datetime
 
 import torch
-from diffusers import QwenImageEditPipeline
+from diffusers import FlowMatchEulerDiscreteScheduler, QwenImageEditPipeline
 from diffusers.utils import load_image
 
 from nunchaku import NunchakuQwenImageTransformer2DModel
 from nunchaku.utils import get_gpu_memory, get_precision
 
+# Scheduler from Qwen-Image-Lightning reference implementation
+scheduler_config = {
+    "base_image_seq_len": 256,
+    "base_shift": math.log(3),
+    "invert_sigmas": False,
+    "max_image_seq_len": 8192,
+    "max_shift": math.log(3),
+    "num_train_timesteps": 1000,
+    "shift": 1.0,
+    "shift_terminal": None,
+    "stochastic_sampling": False,
+    "time_shift_type": "exponential",
+    "use_beta_sigmas": False,
+    "use_dynamic_shifting": True,
+    "use_exponential_sigmas": False,
+    "use_karras_sigmas": False,
+}
+scheduler = FlowMatchEulerDiscreteScheduler.from_config(scheduler_config)
+
 # Settings
-rank = 32
 num_inference_steps = 4
+rank = 32
 height = 720
 width = 1600
 cfg_scale = 1.0
 
-# Load the model
-model_path = f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit.safetensors"
+model_paths = {
+    4: f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit-lightningv1.0-4steps.safetensors",
+    8: f"nunchaku-tech/nunchaku-qwen-image-edit/svdq-{get_precision()}_r{rank}-qwen-image-edit-lightningv1.0-8steps.safetensors",
+}
+model_path = model_paths[num_inference_steps]
 pipeline_repo_id = "Qwen/Qwen-Image-Edit"
 
 print(
@@ -24,10 +47,11 @@ print(
     f"precision={get_precision()}, size={height}x{width}, cfg_scale={cfg_scale}"
 )
 
+# Load the model
 transformer = NunchakuQwenImageTransformer2DModel.from_pretrained(model_path)
 
 pipeline = QwenImageEditPipeline.from_pretrained(
-    pipeline_repo_id, transformer=transformer, torch_dtype=torch.bfloat16
+    pipeline_repo_id, transformer=transformer, scheduler=scheduler, torch_dtype=torch.bfloat16
 )
 
 if get_gpu_memory() > 18:
@@ -46,7 +70,6 @@ inputs = {
     "image": image,
     "prompt": prompt,
     "true_cfg_scale": cfg_scale,
-    "negative_prompt": " ",
     "num_inference_steps": num_inference_steps,
     "height": height,
     "width": width,
